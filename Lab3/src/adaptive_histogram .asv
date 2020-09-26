@@ -1,0 +1,104 @@
+/**
+ * @file
+ * @brief Simple mex function that computes a local histogram equalization
+ * @author Rami Saad
+ * @date November 1, 2019
+ *
+ * Usage:
+ *  >> img_out = adaptive_histogram(img_in, H, W);
+ *
+ */
+#include "mex.h"
+
+/**
+ * @brief Applies spatial on img of type "double".
+ * @param[in] width
+ *      the width of the img in pixels
+ * @param[in] height
+ *      the height of the img in pixels
+ * @param[in] input
+ *      pointer to the first element of the img that we're modifying
+ * @param[out] output
+ *      pointer to the first element of where the output img will be 
+ *      stored
+ * @param[in] T
+ *      cutoff Threshold
+ */
+void adaptive_histogram(int width, int height,int w, int h, const unsigned char *in,unsigned char *out)
+{
+    int size= width*height;
+    int max;
+    double cdf;
+    int temp;
+    int counter; 
+    
+    for (int i=1; i<=size; i++)
+    {
+        if (in[i] >=max)
+            max = in[i];
+    }
+    
+    for (int i = (int)(h/2) ; i < (height-(int)(h/2)) ; i++)            
+        for (int j = (int)(w/2); j <(width-(int)(w/2)); j++)
+        {
+            int ind = j*height + i; 
+            counter = 0; 
+            for (int m=(int)(-w/2); m<=(int)(w/2); m++)
+            {
+                for (int n=(int)(-h/2); n<=(int)(h/2); n++)
+                {   
+                  temp = (ind+(int)(n)) + (int)(m*height); 
+                  if (in[temp] <= in[ind])
+                      counter++;    
+                }     
+            }
+            cdf =  (double)(counter/w*h);
+            out[ind] = (unsigned char) 255*cdf;  
+       }
+}
+
+/**
+ * @brief Main entry point into the mex function.
+ * @param[in] nlhs
+ *      the number of <em>input</em> arguments
+ * @param[in] plhs
+ *      an array of pointers to the matlab array objects
+ * @param[in] nrhs
+ *      the number of <em>output</em> arguments
+ * @param[out] prhs
+ *      an array of uninitialized matlab array objects where the output 
+ *      will be stored
+ */
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
+{
+    // check that the number of input and output arguments are correct and 
+    // otherwise mex function will crash and display an error message
+    if (nlhs != 1)
+        mexErrMsgTxt("img_threshold requires one output argument");
+    
+    if (nrhs != 3)
+        mexErrMsgTxt("img_threshold can only accept three input argument");
+    
+    const mxArray *img = prhs[0];
+    
+    // mask dimensions
+    int loc_h = mxGetScalar(prhs[1]); 
+    int loc_w = mxGetScalar(prhs[2]);
+    	
+    if (!mxIsUint8(img)) 
+		mexErrMsgTxt("function can only accept imgs of type 'uint8'");
+    
+    mwSize ndims_img = mxGetNumberOfDimensions(img);
+    const mwSize *dims_img = mxGetDimensions(img);
+    
+    int height  = dims_img[0]; 
+    int width   = dims_img[1];
+    mxClassID input_type = mxGetClassID(img);
+    mxArray *out = mxCreateNumericArray(ndims_img, dims_img, input_type, mxREAL);
+    
+    plhs[0] = out;
+    unsigned char *img_ptr = (unsigned char *)mxGetData(img);
+    unsigned char *out_ptr = (unsigned char *) mxGetData(out);
+    
+    adaptive_histogram(width, height, loc_w, loc_h, img_ptr,out_ptr);   
+}
